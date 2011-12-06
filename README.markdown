@@ -6,7 +6,7 @@
 
 I made 250 copies of some conference proceedings on USB sticks using this. Several failed MD5 sums for one reason or another during the process.
 
-This software helped me organise this, makign it obvious which devices had successfully been written too by turning lights off when they were done. 
+This software helped me organise this, making it obvious which devices had successfully been written to by turning lights off when they were done. 
 
 This saved me quite a bit of time and minimised errors in the final USB sticks. Hopefully it might help you too.
 
