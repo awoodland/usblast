@@ -11,6 +11,10 @@ use warnings;
 use POSIX;
 use IO::Select;
 
+my $DEVDIR="/dev/";
+my $BLACKLIST=qr/sd[ab]/;
+my $DEVPAT=qr/sd[a-z]/;
+
 delete @ENV{qw(IFS CDPATH ENV BASH_ENV PATH)}; # Make %ENV safer
 
 my $image_file=$ARGV[0] || "master.img";
@@ -23,6 +27,9 @@ print "MD5 of $image_file is: $verify_md5\n";
 local $| = 1;
 
 my $egid = getegid();
+my $euid = geteuid();
+
+($euid && $egid) || die "Don't run as root - ever!";
 
 print "Running as gid: $egid\n";
 
@@ -39,7 +46,7 @@ sub untaint {
 
 sub correct_group {
 	 my $dev = shift;
-	 my (undef, undef, undef, undef, undef, $gid) = stat("/dev/$dev");
+	 my (undef, undef, undef, undef, undef, $gid) = stat("$DEVDIR$dev");
 	 return $egid == $gid;
 }
 
@@ -53,9 +60,9 @@ while (1) {
 
 	 print "Press <ENTER> to start a write cycle\n";
 	 while (!$go) {
-		  opendir(my $devh, "/dev") || die "can't opendir /dev: $!";
+		  opendir(my $devh, "$DEVDIR") || die "can't opendir $DEVDIR: $!";
 		  # maybe if you wanted to write to other devices this regex could be more generalised
-		  @devices = grep {/^sd[a-z]$/ && correct_group($_) && ($_ ="/dev/$_")} readdir($devh);
+		  @devices = grep {/^$DEVPAT$/ && correct_group($_) && ($_ ="$DEVDIR$_")} readdir($devh);
 		  print scalar @devices . " device" . ((scalar @devices  != 1) && 's') . " ready to write \r";
 		  closedir($devh);
 		  $go = <STDIN> while ($s->can_read(1));
@@ -72,7 +79,7 @@ while (1) {
 	 foreach my $dev (@devices) {
 		  $dev = untaint($dev);
 		  # This shouldn't be writeable anyway if udev rules are sane!
-		  die if ($dev =~ /sd[ab]/i);
+		  die if ($dev =~ /$BLACKLIST/i);
 		  open(my $h, "/bin/dd if\=$image_file of\=$dev 2>&1 |") || die "Problem starting dd job: $!";
 		  $s->add($h);
 	 }
