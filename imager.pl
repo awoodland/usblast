@@ -14,11 +14,14 @@ use IO::Select;
 my $DEVDIR="/dev/";
 my $BLACKLIST=qr/sd[ab]/;
 my $DEVPAT=qr/sd[a-z]/;
+my $MD5SUM="/usr/bin/md5sum";
+my $EJECT="/usr/bin/eject";
+my $DROP_CACHE="/usr/local/bin/drop_cache";
 
 delete @ENV{qw(IFS CDPATH ENV BASH_ENV PATH)}; # Make %ENV safer
 
 my $image_file=$ARGV[0] || "master.img";
-my $verify_md5=`/usr/bin/md5sum $image_file` || die "Failed to compute md5 for $image_file";
+my $verify_md5=`$MD5SUM $image_file` || die "Failed to compute md5 for $image_file";
 $verify_md5 =~ s/\s+.*$//;
 chomp $verify_md5;
 
@@ -107,8 +110,7 @@ while (1) {
 	 print "\n";
 
 	 print "Verifying contents\n";
-	 `/bin/sync`;
-	 `/usr/local/bin/drop_cache`; # this is a very simple C++ program that's setuid root!
+	 `$DROP_CACHE`; # this is a very simple C++ program that's setuid root!
 	 print "Dropped caches\n";
 
 	 my %handlemap;
@@ -116,7 +118,7 @@ while (1) {
 	 $s = IO::Select->new();
 	 foreach my $dev (@devices) {
 		  $dev = untaint($dev);
-		  open(my $h, "/usr/bin/md5sum $dev 2>&1 |") || die "Problem starting md5 job: $!";
+		  open(my $h, "$MD5SUM $dev 2>&1 |") || die "Problem starting md5 job: $!";
 		  $s->add($h);
 		  $handlemap{$h} = $dev;
 	 }
@@ -132,8 +134,7 @@ while (1) {
 				print substr($rdev, length($rdev)-1);
 				print "\nDevice: $rdev - $sum != $verify_md5\n" if (!defined $sum || lc($sum) ne lc($verify_md5));
 				if (lc($sum) eq lc($verify_md5) && defined $rdev) {
-					 #print "/usr/bin/eject $rdev\n";
-					 `/usr/bin/eject $rdev`;
+					 `$EJECT $rdev`;
 				}
 				$s->remove($fh);
 				close $fh;
